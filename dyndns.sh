@@ -281,7 +281,7 @@ EOF
     
     log DEBUG "Payload (formatted): $(echo "$payload" | jq -c .)"
     
-    api_call POST "/zones/$zone_id/rrsets" "$payload" || return 1
+    api_call POST "/zones/$zone_id/rrsets" "$payload" > /dev/null || return 1
 }
 
 # Aktualisiere einen bestehenden Record
@@ -308,7 +308,7 @@ EOF
     
     log DEBUG "Payload (formatted): $(echo "$payload" | jq -c .)"
     
-    api_call PUT "/zones/$zone_id/rrsets/$record_name/$record_type" "$payload" || return 1
+    api_call PUT "/zones/$zone_id/rrsets/$record_name/$record_type" "$payload" > /dev/null || return 1
 }
 
 # Zeige Hilfe
