@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ################################################################################
-# Testscript für Hetzner DynDNS
-# 
-# Führe verschiedene Tests durch, um sicherzustellen dass dyndns.sh
-# richtig konfiguriert und funktioniert.
+# Test script for Hetzner DynDNS
+#
+# Runs various tests to verify that dyndns.sh is correctly configured
+# and working.
 ################################################################################
 
 set -o pipefail
@@ -15,13 +15,13 @@ readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
 readonly NC='\033[0m'
 
-# Zähler für Tests
+# Test counters
 tests_total=0
 tests_passed=0
 tests_failed=0
 
 ################################################################################
-# Hilfsfunktionen
+# Helper functions
 ################################################################################
 
 test_header() {
@@ -49,16 +49,16 @@ test_info() {
 }
 
 summary() {
-    echo -e "\n${BLUE}=== Testergebnis ===${NC}"
-    echo -e "Gesamt: ${YELLOW}$tests_total${NC}"
-    echo -e "Bestanden: ${GREEN}$tests_passed${NC}"
-    echo -e "Fehlgeschlagen: ${RED}$tests_failed${NC}"
+    echo -e "\n${BLUE}=== Test Summary ===${NC}"
+    echo -e "Total:  ${YELLOW}$tests_total${NC}"
+    echo -e "Passed: ${GREEN}$tests_passed${NC}"
+    echo -e "Failed: ${RED}$tests_failed${NC}"
     
     if [[ $tests_failed -eq 0 ]] && [[ $tests_total -gt 0 ]]; then
-        echo -e "\n${GREEN}✓ Alle Tests bestanden!${NC}"
+        echo -e "\n${GREEN}✓ All tests passed!${NC}"
         return 0
     else
-        echo -e "\n${RED}✗ Einige Tests sind fehlgeschlagen${NC}"
+        echo -e "\n${RED}✗ Some tests failed${NC}"
         return 1
     fi
 }
@@ -68,29 +68,29 @@ summary() {
 ################################################################################
 
 test_prerequisites() {
-    test_header "Voraussetzungen überprüfen"
+    test_header "Check prerequisites"
     
     # curl
     if command -v curl &> /dev/null; then
-        test_pass "curl ist installiert"
+        test_pass "curl is installed"
     else
-        test_fail "curl ist NICHT installiert"
+        test_fail "curl is NOT installed"
         return 1
     fi
     
     # jq
     if command -v jq &> /dev/null; then
-        test_pass "jq ist installiert"
+        test_pass "jq is installed"
     else
-        test_fail "jq ist NICHT installiert"
+        test_fail "jq is NOT installed"
         return 1
     fi
     
     # bash
     if [[ ${BASH_VERSINFO[0]} -ge 4 ]]; then
-        test_pass "Bash 4.0+ ist installiert (Version ${BASH_VERSION})"
+        test_pass "Bash 4.0+ is installed (version ${BASH_VERSION})"
     else
-        test_fail "Bash 4.0+ erforderlich (aktuelle Version ${BASH_VERSION})"
+        test_fail "Bash 4.0+ required (current version ${BASH_VERSION})"
         return 1
     fi
 }
@@ -100,221 +100,221 @@ test_prerequisites() {
 ################################################################################
 
 test_script_exists() {
-    test_header "Script-Existenz überprüfen"
+    test_header "Check script exists"
     
     if [[ -f "./dyndns.sh" ]]; then
-        test_pass "dyndns.sh existiert"
+        test_pass "dyndns.sh exists"
     else
-        test_fail "dyndns.sh nicht gefunden"
+        test_fail "dyndns.sh not found"
         return 1
     fi
 }
 
 test_script_executable() {
-    test_header "Script-Berechtigungen überprüfen"
+    test_header "Check script permissions"
     
     if [[ -x "./dyndns.sh" ]]; then
-        test_pass "dyndns.sh ist ausführbar"
+        test_pass "dyndns.sh is executable"
     else
-        test_fail "dyndns.sh ist NICHT ausführbar"
-        test_info "Führe aus: chmod +x dyndns.sh"
+        test_fail "dyndns.sh is NOT executable"
+        test_info "Run: chmod +x dyndns.sh"
     fi
 }
 
 test_script_syntax() {
-    test_header "Bash-Syntax überprüfen"
+    test_header "Check Bash syntax"
     
     if bash -n ./dyndns.sh 2>/dev/null; then
-        test_pass "dyndns.sh hat korrekte Bash-Syntax"
+        test_pass "dyndns.sh has valid Bash syntax"
     else
-        test_fail "dyndns.sh hat Syntax-Fehler"
+        test_fail "dyndns.sh has syntax errors"
         bash -n ./dyndns.sh
     fi
 }
 
 test_help_output() {
-    test_header "Help-Ausgabe überprüfen"
+    test_header "Check help output"
     
     local help_output
     help_output=$("./dyndns.sh" -h 2>&1)
     
-    if echo "$help_output" | grep -q "VERWENDUNG"; then
-        test_pass "Help-Text enthält 'VERWENDUNG'"
+    if echo "$help_output" | grep -q "USAGE"; then
+        test_pass "Help text contains 'USAGE'"
     else
-        test_fail "Help-Text fehlerhaft"
+        test_fail "Help text malformed"
     fi
     
-    if echo "$help_output" | grep -q "ERFORDERLICHE PARAMETER"; then
-        test_pass "Help-Text enthält 'ERFORDERLICHE PARAMETER'"
+    if echo "$help_output" | grep -q "REQUIRED PARAMETERS"; then
+        test_pass "Help text contains 'REQUIRED PARAMETERS'"
     else
-        test_fail "Help-Text fehlerhaft"
+        test_fail "Help text malformed"
     fi
     
-    if echo "$help_output" | grep -q "BEISPIELE"; then
-        test_pass "Help-Text enthält 'BEISPIELE'"
+    if echo "$help_output" | grep -q "EXAMPLES"; then
+        test_pass "Help text contains 'EXAMPLES'"
     else
-        test_fail "Help-Text fehlerhaft"
+        test_fail "Help text malformed"
     fi
 }
 
 ################################################################################
-# Konfiguration Tests
+# Configuration tests
 ################################################################################
 
 test_environment_variables() {
-    test_header "Umgebungsvariablen-Unterstützung"
+    test_header "Environment variable support"
     
     if grep -q "HETZNER_AUTH_API_TOKEN" dyndns.sh; then
-        test_pass "HETZNER_AUTH_API_TOKEN wird unterstützt"
+        test_pass "HETZNER_AUTH_API_TOKEN is supported"
     else
-        test_fail "HETZNER_AUTH_API_TOKEN wird NICHT unterstützt"
+        test_fail "HETZNER_AUTH_API_TOKEN is NOT supported"
     fi
     
     if grep -q "HETZNER_ZONE_NAME" dyndns.sh; then
-        test_pass "HETZNER_ZONE_NAME wird unterstützt"
+        test_pass "HETZNER_ZONE_NAME is supported"
     else
-        test_fail "HETZNER_ZONE_NAME wird NICHT unterstützt"
+        test_fail "HETZNER_ZONE_NAME is NOT supported"
     fi
     
     if grep -q "HETZNER_ZONE_ID" dyndns.sh; then
-        test_pass "HETZNER_ZONE_ID wird unterstützt"
+        test_pass "HETZNER_ZONE_ID is supported"
     else
-        test_fail "HETZNER_ZONE_ID wird NICHT unterstützt"
+        test_fail "HETZNER_ZONE_ID is NOT supported"
     fi
     
     if grep -q "HETZNER_RECORD_NAME" dyndns.sh; then
-        test_pass "HETZNER_RECORD_NAME wird unterstützt"
+        test_pass "HETZNER_RECORD_NAME is supported"
     else
-        test_fail "HETZNER_RECORD_NAME wird NICHT unterstützt"
+        test_fail "HETZNER_RECORD_NAME is NOT supported"
     fi
 }
 
 ################################################################################
-# API Tests
+# API tests
 ################################################################################
 
 test_api_connectivity() {
-    test_header "API-Erreichbarkeit überprüfen"
+    test_header "Check API connectivity"
     
     if curl -s "https://api.hetzner.cloud/v1/zones" \
         -H "Authorization: Bearer invalid-token" | jq . > /dev/null 2>&1; then
-        test_pass "Hetzner API ist erreichbar"
+        test_pass "Hetzner API is reachable"
     else
-        test_fail "Hetzner API ist NICHT erreichbar"
+        test_fail "Hetzner API is NOT reachable"
     fi
 }
 
 test_ipv4_detection() {
-    test_header "IPv4-Erkennung testen"
+    test_header "Test IPv4 detection"
     
     local ipv4
     ipv4=$(curl -s "https://api.ipify.org?format=text" 2>/dev/null)
     
     if [[ $ipv4 =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        test_pass "Öffentliche IPv4 erkannt: $ipv4"
+        test_pass "Public IPv4 detected: $ipv4"
     else
-        test_fail "Konnte öffentliche IPv4 nicht ermitteln"
+        test_fail "Could not determine public IPv4"
     fi
 }
 
 test_ipv6_detection() {
-    test_header "IPv6-Erkennung testen"
+    test_header "Test IPv6 detection"
     
     local ipv6
     ipv6=$(curl -s -6 "https://api6.ipify.org?format=text" 2>/dev/null)
     
     if [[ -n "$ipv6" ]] && [[ "$ipv6" =~ ^[0-9a-fA-F:]+$ ]]; then
-        test_pass "Öffentliche IPv6 erkannt: $ipv6"
+        test_pass "Public IPv6 detected: $ipv6"
     else
-        test_skip "IPv6 ist auf diesem System nicht verfügbar"
+        test_skip "IPv6 is not available on this system"
     fi
 }
 
 ################################################################################
-# Konfigurationsdatei-Tests
+# Config file tests
 ################################################################################
 
 test_config_example() {
-    test_header "Config-Beispiele überprüfen"
+    test_header "Check config examples"
     
     if [[ -f "config-examples.sh" ]]; then
-        test_pass "config-examples.sh existiert"
+        test_pass "config-examples.sh exists"
         
         if bash -n config-examples.sh 2>/dev/null; then
-            test_pass "config-examples.sh hat korrekte Syntax"
+            test_pass "config-examples.sh has valid syntax"
         else
-            test_fail "config-examples.sh hat Syntax-Fehler"
+            test_fail "config-examples.sh has syntax errors"
         fi
     else
-        test_fail "config-examples.sh nicht gefunden"
+        test_fail "config-examples.sh not found"
     fi
 }
 
 test_readme() {
-    test_header "Dokumentation überprüfen"
+    test_header "Check documentation"
     
     if [[ -f "README.md" ]]; then
-        test_pass "README.md existiert"
+        test_pass "README.md exists"
         
         if grep -q "Installation" README.md; then
-            test_pass "README enthält 'Installation'"
+            test_pass "README contains 'Installation'"
         else
-            test_fail "README fehlt 'Installation'-Sektion"
+            test_fail "README missing 'Installation' section"
         fi
         
-        if grep -q "Beispiele" README.md; then
-            test_pass "README enthält 'Beispiele'"
+        if grep -iq "example" README.md; then
+            test_pass "README contains examples"
         else
-            test_fail "README fehlt 'Beispiele'-Sektion"
+            test_fail "README missing examples section"
         fi
         
         if grep -q "Cron" README.md; then
-            test_pass "README enthält 'Cron'-Information"
+            test_pass "README contains cron information"
         else
-            test_fail "README fehlt 'Cron'-Information"
+            test_fail "README missing cron information"
         fi
     else
-        test_fail "README.md nicht gefunden"
+        test_fail "README.md not found"
     fi
 }
 
 ################################################################################
-# Integration Tests
+# Integration tests
 ################################################################################
 
 test_no_token_error() {
-    test_header "Fehlerbehandlung: Fehlender API-Token"
+    test_header "Error handling: missing API token"
     
     local output
     output=$("./dyndns.sh" -Z "example.com" -n "dyn" 2>&1)
     
     if echo "$output" | grep -q "HETZNER_AUTH_API_TOKEN"; then
-        test_pass "Script gibt aussagekräftige Fehlermeldung aus"
+        test_pass "Script outputs a meaningful error message"
     else
-        test_fail "Fehlermeldung nicht aussagekräftig"
+        test_fail "Error message not meaningful"
     fi
 }
 
 test_help_flag() {
-    test_header "Help-Flag testen"
+    test_header "Test help flag"
     
     local exit_code
     "./dyndns.sh" -h > /dev/null 2>&1
     exit_code=$?
     
     if [[ $exit_code -eq 0 ]]; then
-        test_pass "Help-Flag (-h) funktioniert korrekt"
+        test_pass "Help flag (-h) works correctly"
     else
-        test_fail "Help-Flag (-h) gibt Fehler zurück"
+        test_fail "Help flag (-h) returned an error"
     fi
 }
 
 ################################################################################
-# Performance Tests
+# Performance tests
 ################################################################################
 
 test_execution_time() {
-    test_header "Performance überprüfen"
+    test_header "Check performance"
     
     local start_time
     local end_time
@@ -324,12 +324,12 @@ test_execution_time() {
     bash -c 'source ./dyndns.sh' 2>/dev/null
     end_time=$(date +%s%N)
     
-    execution_time=$(( (end_time - start_time) / 1000000 ))  # Millisekunden
+    execution_time=$(( (end_time - start_time) / 1000000 ))  # milliseconds
     
     if [[ $execution_time -lt 1000 ]]; then
-        test_pass "Script-Laden dauert weniger als 1 Sekunde ($execution_time ms)"
+        test_pass "Script load time under 1 second ($execution_time ms)"
     else
-        test_info "Script-Laden dauert $execution_time ms"
+        test_info "Script load time: $execution_time ms"
     fi
 }
 
@@ -346,14 +346,14 @@ main() {
 EOF
     echo -e "${NC}"
     
-    # Überprüfe ob wir im richtigen Verzeichnis sind
+    # Check we are in the right directory
     if [[ ! -f "dyndns.sh" ]]; then
-        echo -e "${RED}Fehler: dyndns.sh nicht gefunden${NC}"
-        echo "Bitte führe dieses Script im Verzeichnis mit dyndns.sh aus"
+        echo -e "${RED}Error: dyndns.sh not found${NC}"
+        echo "Please run this script from the directory containing dyndns.sh"
         exit 1
     fi
     
-    # Führe alle Tests aus
+    # Run all tests
     test_prerequisites || exit 1
     test_script_exists
     test_script_executable
@@ -369,9 +369,9 @@ EOF
     test_help_flag
     test_execution_time
     
-    # Zeige Zusammenfassung
+    # Show summary
     summary
 }
 
-# Starte Tests
+# Run tests
 main "$@"
