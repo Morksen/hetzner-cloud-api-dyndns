@@ -2,28 +2,28 @@
 
 ################################################################################
 # Hetzner DNS DynDNS Update Script
-# Moderne Version für die aktuelle Hetzner DNS API (v1)
-# 
-# Unterstützt sowohl Zone-Name als auch Zone-ID und aktualisiert DNS-Records
-# automatisch nur wenn sich die IP-Adresse ändert.
+# Modern implementation for the current Hetzner DNS API (v1)
 #
-# Kompatibel mit allen Legacy Environment-Variablen:
+# Supports both zone name and zone ID and updates DNS records
+# automatically only when the IP address changes.
+#
+# Compatible with all legacy environment variables:
 # - HETZNER_AUTH_API_TOKEN
-# - HETZNER_ZONE_NAME oder HETZNER_ZONE_ID
+# - HETZNER_ZONE_NAME or HETZNER_ZONE_ID
 # - HETZNER_RECORD_NAME
 # - HETZNER_RECORD_TTL (default: 60)
 # - HETZNER_RECORD_TYPE (default: A)
 #
-# API Dokumentation: https://docs.hetzner.cloud/reference/cloud#tag/zones
+# API documentation: https://docs.hetzner.cloud/reference/cloud#tag/zones
 ################################################################################
 
 set -o pipefail
 
-# Konstanten
+# Constants
 readonly API_ENDPOINT="https://api.hetzner.cloud/v1"
 readonly SCRIPT_NAME="$(basename "$0")"
 
-# Globale Variablen
+# Global variables
 auth_api_token="${HETZNER_AUTH_API_TOKEN:-}"
 zone_id="${HETZNER_ZONE_ID:-}"
 zone_name="${HETZNER_ZONE_NAME:-}"
@@ -33,15 +33,15 @@ record_ttl="${HETZNER_RECORD_TTL:-60}"
 record_type="${HETZNER_RECORD_TYPE:-A}"
 verbose="${HETZNER_VERBOSE:-false}"
 force_colors="false"
-__retval=""  # Globale Rückgabevariable für Funktionen, die Werte zurückgeben
+__retval=""  # Global return variable for functions that return values
 
-# Farben werden später initialisiert nach Argument Parsing
+# Colors are initialized later after argument parsing
 
 ################################################################################
-# Hilfsfunktionen
+# Helper functions
 ################################################################################
 
-# Logging mit Zeitstempel
+# Logging with timestamp
 log() {
     local level="$1"
     shift
@@ -66,7 +66,7 @@ log() {
     esac
 }
 
-# Hilfsfunktion für API-Aufrufe
+# Helper function for API calls
 api_call() {
     local method="$1"
     local endpoint="$2"
@@ -81,10 +81,10 @@ api_call() {
     
     if [[ -n "$data" ]]; then
         curl_args+=(-d "$data")
-        log DEBUG "API-Anfrage: $method $endpoint"
-        # Überprüfe ob JSON valide ist
+        log DEBUG "API request: $method $endpoint"
+        # Validate JSON payload
         if ! echo "$data" | jq . &>/dev/null; then
-            log ERROR "Ungültige JSON-Payload: $data"
+            log ERROR "Invalid JSON payload: $data"
             return 1
         fi
         log DEBUG "Payload (formatted): $(echo "$data" | jq -c .)"
@@ -94,16 +94,16 @@ api_call() {
     response=$(curl "${curl_args[@]}" "${API_ENDPOINT}${endpoint}")
     
     if [[ $? -ne 0 ]]; then
-        log ERROR "API-Aufruf fehlgeschlagen: $method $endpoint"
+        log ERROR "API call failed: $method $endpoint"
         return 1
     fi
     
-    log DEBUG "API-Antwort: $response"
+    log DEBUG "API response: $response"
     
-    # Überprüfe auf Fehler in der API-Antwort
+    # Check for errors in the API response
     if [[ -n "$response" ]] && echo "$response" | jq -e '.error' &>/dev/null; then
         local error_msg=$(echo "$response" | jq -r '.error.message // .error' 2>/dev/null)
-        log ERROR "API-Fehler: $error_msg"
+        log ERROR "API error: $error_msg"
         return 1
     fi
     
@@ -111,53 +111,53 @@ api_call() {
     return 0
 }
 
-# Hole die öffentliche IPv4-Adresse
+# Get the public IPv4 address
 get_public_ipv4() {
-    # Versuche mehrere DNS-Query-Services
+    # Try multiple IP discovery services
     local ipv4
     
-    # Methode 1: DNS über Hetzner
+    # Method 1: DNS via Hetzner
     ipv4=$(curl -s "https://dns.hetzner.com/api/v1/dns/check?domain=example.com" 2>/dev/null | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' | head -1)
     
     if [[ -z "$ipv4" ]]; then
-        # Methode 2: Verwende einen öffentlichen Service
+        # Method 2: Public IP service
         ipv4=$(curl -s "https://api.ipify.org?format=text" 2>/dev/null)
     fi
     
     if [[ -z "$ipv4" ]]; then
-        # Methode 3: Alternative
+        # Method 3: Alternative
         ipv4=$(curl -s "https://icanhazip.com" 2>/dev/null | tr -d '[:space:]')
     fi
     
     if [[ -z "$ipv4" ]] || ! [[ "$ipv4" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        log ERROR "Konnte öffentliche IPv4 nicht ermitteln"
+        log ERROR "Could not determine public IPv4 address"
         return 1
     fi
     
     __retval="$ipv4"
 }
 
-# Hole die öffentliche IPv6-Adresse
+# Get the public IPv6 address
 get_public_ipv6() {
     local ipv6
     
-    # Methode 1: IPv6-spezifischer Service
+    # Method 1: IPv6-specific service
     ipv6=$(curl -s -6 "https://api6.ipify.org?format=text" 2>/dev/null)
     
     if [[ -z "$ipv6" ]]; then
-        # Methode 2: Alternative
+        # Method 2: Alternative
         ipv6=$(curl -s -6 "https://icanhazip.com" 2>/dev/null | tr -d '[:space:]')
     fi
     
     if [[ -z "$ipv6" ]] || ! [[ "$ipv6" =~ ^[0-9a-fA-F:]+$ ]]; then
-        log ERROR "Konnte öffentliche IPv6 nicht ermitteln"
+        log ERROR "Could not determine public IPv6 address"
         return 1
     fi
     
     __retval="$ipv6"
 }
 
-# Ermittle die aktuelle öffentliche IP basierend auf Record-Type
+# Determine the current public IP based on record type
 get_current_ip() {
     local type="$1"
     
@@ -169,17 +169,17 @@ get_current_ip() {
             get_public_ipv6
             ;;
         *)
-            log ERROR "Unbekannter Record-Type: $type"
+            log ERROR "Unknown record type: $type"
             return 1
             ;;
     esac
 }
 
-# Finde Zone-ID anhand Zone-Name
+# Look up zone ID by zone name
 get_zone_id_by_name() {
     local name="$1"
     
-    log DEBUG "Suche Zone-ID für Zone: $name"
+    log DEBUG "Looking up zone ID for zone: $name"
     
     api_call GET "/zones?name=$name" || return 1
     local response="$__retval"
@@ -188,60 +188,60 @@ get_zone_id_by_name() {
     found_id=$(echo "$response" | jq -r '.zones[0].id' 2>/dev/null)
     
     if [[ -z "$found_id" ]] || [[ "$found_id" == "null" ]]; then
-        log ERROR "Zone nicht gefunden: $name"
+        log ERROR "Zone not found: $name"
         return 1
     fi
     
     __retval="$found_id"
 }
 
-# Validiere Zone-ID
+# Validate zone ID
 validate_zone_id() {
     local zone_id="$1"
     
-    log DEBUG "Validiere Zone-ID: $zone_id"
+    log DEBUG "Validating zone ID: $zone_id"
     
     api_call GET "/zones/$zone_id" || return 1
     local response="$__retval"
     
-    # Überprüfe ob die Zone-Struktur vorhanden ist
+    # Check whether the zone structure is present
     if echo "$response" | jq -e '.zone' &>/dev/null 2>&1; then
-        log DEBUG "Zone validiert: $zone_id"
+        log DEBUG "Zone validated: $zone_id"
         __retval="$zone_id"
         return 0
     fi
     
-    log DEBUG "Validierung fehlgeschlagen. API-Antwort: $response"
+    log DEBUG "Validation failed. API response: $response"
     return 1
 }
 
-# Hole alle Records für eine Zone
+# Fetch all records for a zone
 get_zone_records() {
     local zone_id="$1"
     
-    log DEBUG "Hole Records für Zone: $zone_id"
+    log DEBUG "Fetching records for zone: $zone_id"
     
     api_call GET "/zones/$zone_id/rrsets" || return 1
 }
 
-# Suche einen spezifischen Record
+# Find a specific record
 find_record() {
     local zone_id="$1"
     local record_name="$2"
     local record_type="$3"
     
-    log DEBUG "Suche Record: name=$record_name, type=$record_type"
+    log DEBUG "Looking up record: name=$record_name, type=$record_type"
     
     get_zone_records "$zone_id" || return 1
     local response="$__retval"
     
-    # Suche nach dem passenden Record (nur mit dem Namen ohne FQDN)
+    # Find the matching record (name only, without FQDN)
     local rrset
     rrset=$(echo "$response" | jq --arg name "$record_name" --arg type "$record_type" \
         '.rrsets[] | select(.name == $name and .type == $type)' 2>/dev/null)
     
     if [[ -z "$rrset" ]]; then
-        log DEBUG "Record nicht gefunden: $record_name ($record_type)"
+        log DEBUG "Record not found: $record_name ($record_type)"
         __retval=""
         return 1
     fi
@@ -249,15 +249,15 @@ find_record() {
     __retval="$rrset"
 }
 
-# Extrahiere aktuelle IP aus einem Record
+# Extract the current IP value from a record
 extract_record_value() {
     local rrset="$1"
     
-    # Der Wert eines Records ist ein Array von Records
+    # The record value is stored in an array of record entries
     __retval=$(echo "$rrset" | jq -r '.records[0].value' 2>/dev/null)
 }
 
-# Erstelle einen neuen Record
+# Create a new record
 create_record() {
     local zone_id="$1"
     local record_name="$2"
@@ -265,7 +265,7 @@ create_record() {
     local record_value="$4"
     local ttl="$5"
     
-    log INFO "Erstelle neuen Record: $record_name ($record_type) = $record_value"
+    log INFO "Creating new record: $record_name ($record_type) = $record_value"
     
     local payload=$(cat <<EOF
 {
@@ -286,7 +286,7 @@ EOF
     api_call POST "/zones/$zone_id/rrsets" "$payload" || return 1
 }
 
-# Aktualisiere einen bestehenden Record
+# Update an existing record
 update_record() {
     local zone_id="$1"
     local record_name="$2"
@@ -294,7 +294,7 @@ update_record() {
     local record_value="$4"
     local ttl="$5"
     
-    log INFO "Aktualisiere Record: $record_name ($record_type) = $record_value"
+    log INFO "Updating record: $record_name ($record_type) = $record_value"
     
     local payload=$(cat <<EOF
 {
@@ -313,188 +313,188 @@ EOF
     api_call PUT "/zones/$zone_id/rrsets/$record_name/$record_type" "$payload" || return 1
 }
 
-# Lösche einen bestehenden RRSET (Name + Typ)
+# Delete an existing RRset (name + type)
 delete_record() {
     local zone_id="$1"
     local record_name="$2"
     local record_type="$3"
 
-    log INFO "Lösche bestehenden Record: $record_name ($record_type)"
+    log INFO "Deleting existing record: $record_name ($record_type)"
 
     api_call DELETE "/zones/$zone_id/rrsets/$record_name/$record_type" || return 1
 }
 
-# Zeige Hilfe
+# Show help
 show_help() {
     cat <<EOF
 ${BLUE}Hetzner DNS DynDNS Update Script${NC}
 
-${YELLOW}VERWENDUNG:${NC}
+${YELLOW}USAGE:${NC}
   $SCRIPT_NAME [-z <Zone ID> | -Z <Zone Name>] -n <Record Name> [OPTIONS]
 
-${YELLOW}ERFORDERLICHE PARAMETER:${NC}
-  -z <Zone ID>         Zone-ID (alternativ zu -Z)
-  -Z <Zone Name>       Zone-Name (alternativ zu -z), z.B. example.com
-  -n <Record Name>     Name des Records, z.B. dyn oder @ für Zone-Apex
+${YELLOW}REQUIRED PARAMETERS:${NC}
+  -z <Zone ID>         Zone ID (alternative to -Z)
+  -Z <Zone Name>       Zone name (alternative to -z), e.g. example.com
+  -n <Record Name>     Name of the record, e.g. dyn or @ for zone apex
 
-${YELLOW}OPTIONALE PARAMETER:${NC}
-  -t <TTL>            Time To Live in Sekunden (default: 60)
-  -T <Record Type>    Record-Type: A (IPv4) oder AAAA (IPv6) (default: A)
-  -r <Record ID>      Record-ID (deprecated, wird automatisch ermittelt)
-  -v                  Verbose-Modus (Debug-Ausgaben)
-  -C                  Farben erzwingen (auch wenn nicht zu Terminal)
-  -h                  Diese Hilfe anzeigen
+${YELLOW}OPTIONAL PARAMETERS:${NC}
+  -t <TTL>            Time To Live in seconds (default: 60)
+  -T <Record Type>    Record type: A (IPv4) or AAAA (IPv6) (default: A)
+  -r <Record ID>      Record ID (deprecated, determined automatically)
+  -v                  Verbose mode (debug output)
+  -C                  Force colors (even when not writing to a terminal)
+  -h                  Show this help
 
-${YELLOW}UMGEBUNGSVARIABLEN:${NC}
-  HETZNER_AUTH_API_TOKEN    API-Token (erforderlich)
-  HETZNER_ZONE_ID           Zone-ID
-  HETZNER_ZONE_NAME         Zone-Name
-  HETZNER_RECORD_NAME       Record-Name
+${YELLOW}ENVIRONMENT VARIABLES:${NC}
+  HETZNER_AUTH_API_TOKEN    API token (required)
+  HETZNER_ZONE_ID           Zone ID
+  HETZNER_ZONE_NAME         Zone name
+  HETZNER_RECORD_NAME       Record name
   HETZNER_RECORD_TTL        TTL (default: 60)
-  HETZNER_RECORD_TYPE       Record-Type (default: A)
-  HETZNER_VERBOSE           Verbose-Modus (true/false)
-  NO_COLOR                  Deaktiviert Farben (auch wenn Terminal)
+  HETZNER_RECORD_TYPE       Record type (default: A)
+  HETZNER_VERBOSE           Verbose mode (true/false)
+  NO_COLOR                  Disable colors (even when writing to a terminal)
 
-${YELLOW}BEISPIELE:${NC}
-  # Mit Zone-Name und Command-Line-Parametern
+${YELLOW}EXAMPLES:${NC}
+  # With zone name and command-line parameters
   HETZNER_AUTH_API_TOKEN='your-token' \\
     $SCRIPT_NAME -Z example.com -n dyn
 
-  # Mit Zone-Name und IPv6
+  # With zone name and IPv6
   HETZNER_AUTH_API_TOKEN='your-token' \\
     $SCRIPT_NAME -Z example.com -n dyn -T AAAA
 
-  # Mit Zone-ID
+  # With zone ID
   HETZNER_AUTH_API_TOKEN='your-token' \\
     $SCRIPT_NAME -z 98jFjsd8dh1GHasdf7a8hJG7 -n dyn
 
-  # Nur mit Umgebungsvariablen
+  # Using environment variables only
   export HETZNER_AUTH_API_TOKEN='your-token'
   export HETZNER_ZONE_NAME='example.com'
   export HETZNER_RECORD_NAME='dyn'
   $SCRIPT_NAME
 
-${YELLOW}CRON-BEISPIEL:${NC}
-  # Aktualisiere alle 5 Minuten
+${YELLOW}CRON EXAMPLE:${NC}
+  # Update every 5 minutes
   */5 * * * * HETZNER_AUTH_API_TOKEN='your-token' /usr/local/bin/dyndns.sh -Z example.com -n dyn
 
-${YELLOW}DOKUMENTATION:${NC}
+${YELLOW}DOCUMENTATION:${NC}
   https://docs.hetzner.cloud/reference/cloud#tag/zones
 
 EOF
 }
 
 ################################################################################
-# Hauptfunktion
+# Main function
 ################################################################################
 
 main() {
-    # Validiere erforderliche Argumente
+    # Validate required arguments
     if [[ -z "$auth_api_token" ]]; then
-        log ERROR "HETZNER_AUTH_API_TOKEN nicht gesetzt"
+        log ERROR "HETZNER_AUTH_API_TOKEN is not set"
         exit 1
     fi
     
     if [[ -z "$record_name" ]]; then
-        log ERROR "Record-Name nicht angegeben (-n)"
+        log ERROR "Record name not specified (-n)"
         show_help
         exit 1
     fi
     
     if [[ -z "$zone_id" && -z "$zone_name" ]]; then
-        log ERROR "Entweder Zone-ID (-z) oder Zone-Name (-Z) erforderlich"
+        log ERROR "Either zone ID (-z) or zone name (-Z) is required"
         show_help
         exit 1
     fi
     
     if [[ -n "$zone_id" && -n "$zone_name" ]]; then
-        log WARN "Sowohl Zone-ID als auch Zone-Name angegeben, verwende Zone-ID"
+        log WARN "Both zone ID and zone name specified, using zone ID"
     fi
     
-    # Bestimme Zone-ID
+    # Determine zone ID
     if [[ -z "$zone_id" ]]; then
-        log INFO "Ermittle Zone-ID für Zone: $zone_name"
+        log INFO "Looking up zone ID for zone: $zone_name"
         get_zone_id_by_name "$zone_name" || {
-            log ERROR "Konnte Zone-ID nicht ermitteln"
+            log ERROR "Could not determine zone ID"
             exit 1
         }
         zone_id="$__retval"
-        log INFO "Zone-ID gefunden: $zone_id"
+        log INFO "Zone ID found: $zone_id"
     else
-        log INFO "Überprüfe Zone-ID: $zone_id"
+        log INFO "Verifying zone ID: $zone_id"
         if ! validate_zone_id "$zone_id"; then
-            log ERROR "Zone-ID ungültig oder nicht erreichbar: $zone_id"
+            log ERROR "Zone ID invalid or unreachable: $zone_id"
             exit 1
         fi
-        log INFO "Zone-ID ist gültig"
+        log INFO "Zone ID is valid"
     fi
     
-    # Ermittle aktuelle öffentliche IP
-    log INFO "Ermittle aktuelle öffentliche IP ($record_type)..."
+    # Determine current public IP
+    log INFO "Determining current public IP ($record_type)..."
     get_current_ip "$record_type" || {
-        log ERROR "Konnte öffentliche IP nicht ermitteln"
+        log ERROR "Could not determine public IP"
         exit 1
     }
     local current_ip="$__retval"
-    log INFO "Aktuelle IP: $current_ip"
+    log INFO "Current IP: $current_ip"
     
-    # Suche bestehenden Record
+    # Look up existing record
     find_record "$zone_id" "$record_name" "$record_type"
     local existing_record="$__retval"
     
     if [[ -n "$existing_record" ]]; then
-        # Record existiert, überprüfe ob Update nötig ist
+        # Record exists, check whether an update is needed
         extract_record_value "$existing_record"
         local existing_ip="$__retval"
         
-        log INFO "Bestehender Record gefunden: $record_name ($record_type) = $existing_ip"
+        log INFO "Existing record found: $record_name ($record_type) = $existing_ip"
         
         if [[ "$existing_ip" == "$current_ip" ]]; then
-            log INFO "IP-Adresse hat sich nicht geändert, keine Aktualisierung nötig"
+            log INFO "IP address has not changed, no update needed"
             exit 0
         fi
         
-        log INFO "IP-Adresse hat sich geändert: $existing_ip -> $current_ip"
+        log INFO "IP address has changed: $existing_ip -> $current_ip"
 
         delete_record "$zone_id" "$record_name" "$record_type" || {
-            log ERROR "Konnte bestehenden Record nicht löschen"
+            log ERROR "Could not delete existing record"
             exit 1
         }
 
-        # kurzer Schutz gegen API-Race-Conditions
+        # Brief guard against API race conditions
         sleep 1
 
         create_record "$zone_id" "$record_name" "$record_type" "$current_ip" "$record_ttl" || {
-            log ERROR "Konnte Record nicht neu erstellen"
+            log ERROR "Could not recreate record"
             exit 1
         }
 
-        log INFO "Record erfolgreich neu erstellt"
+        log INFO "Record successfully recreated"
 
     else
-        # Record existiert nicht, erstelle ihn
-        log INFO "Record existiert nicht, erstelle neuen Record"
+        # Record does not exist, create it
+        log INFO "Record does not exist, creating new record"
         create_record "$zone_id" "$record_name" "$record_type" "$current_ip" "$record_ttl" || {
-            log ERROR "Konnte Record nicht erstellen"
+            log ERROR "Could not create record"
             exit 1
         }
-        log INFO "Record erfolgreich erstellt"
+        log INFO "Record successfully created"
     fi
     
-    log INFO "DynDNS-Update abgeschlossen: $record_name ($record_type) = $current_ip"
+    log INFO "DynDNS update complete: $record_name ($record_type) = $current_ip"
     exit 0
 }
 
 ################################################################################
-# Argument Parsing
+# Argument parsing
 ################################################################################
 
-# Erste schnelle Runde nur für Farb-Optionen
+# First quick pass to detect color options only
 while getopts "z:Z:n:r:t:T:vCh" opt 2>/dev/null; do
     [[ $opt == "C" ]] && force_colors="true"
 done
 
-# Farben initialisieren basierend auf force_colors Flag BEVOR andere Funktionen aufgerufen werden
+# Initialize colors based on force_colors flag BEFORE any functions are called
 if [[ "$force_colors" == "true" ]] || ([[ -t 1 ]] && [[ "${NO_COLOR:-}" != "1" ]]); then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -509,10 +509,10 @@ else
     NC=''
 fi
 
-# Setze OPTIND zurück für vollständige Verarbeitung
+# Reset OPTIND for full processing
 OPTIND=1
 
-# Hauptschleife für alle Argumente
+# Main loop for all arguments
 while getopts "z:Z:n:r:t:T:vCh" opt; do
     case $opt in
         z)
@@ -537,7 +537,7 @@ while getopts "z:Z:n:r:t:T:vCh" opt; do
             verbose="true"
             ;;
         C)
-            # Erzwinge Farben - setze die Variable vor den Farben
+            # Force colors
             force_colors="true"
             ;;
         h)
@@ -551,5 +551,5 @@ while getopts "z:Z:n:r:t:T:vCh" opt; do
     esac
 done
 
-# Starte Hauptfunktion
+# Run main function
 main
