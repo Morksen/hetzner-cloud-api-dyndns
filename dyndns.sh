@@ -100,7 +100,7 @@ api_call() {
     log DEBUG "API-Antwort: $response"
     
     # Überprüfe auf Fehler in der API-Antwort
-    if echo "$response" | jq -e '.error' &>/dev/null; then
+    if [[ -n "$response" ]] && echo "$response" | jq -e '.error' &>/dev/null; then
         local error_msg=$(echo "$response" | jq -r '.error.message // .error' 2>/dev/null)
         log ERROR "API-Fehler: $error_msg"
         return 1
@@ -311,6 +311,17 @@ EOF
     api_call PUT "/zones/$zone_id/rrsets/$record_name/$record_type" "$payload" > /dev/null || return 1
 }
 
+# Lösche einen bestehenden RRSET (Name + Typ)
+delete_record() {
+    local zone_id="$1"
+    local record_name="$2"
+    local record_type="$3"
+
+    log INFO "Lösche bestehenden Record: $record_name ($record_type)"
+
+    api_call DELETE "/zones/$zone_id/rrsets/$record_name/$record_type" > /dev/null || return 1
+}
+
 # Zeige Hilfe
 show_help() {
     cat <<EOF
@@ -443,11 +454,22 @@ main() {
         fi
         
         log INFO "IP-Adresse hat sich geändert: $existing_ip -> $current_ip"
-        update_record "$zone_id" "$record_name" "$record_type" "$current_ip" "$record_ttl" || {
-            log ERROR "Konnte Record nicht aktualisieren"
+
+        delete_record "$zone_id" "$record_name" "$record_type" || {
+            log ERROR "Konnte bestehenden Record nicht löschen"
             exit 1
         }
-        log INFO "Record erfolgreich aktualisiert"
+
+        # kurzer Schutz gegen API-Race-Conditions
+        sleep 1
+
+        create_record "$zone_id" "$record_name" "$record_type" "$current_ip" "$record_ttl" || {
+            log ERROR "Konnte Record nicht neu erstellen"
+            exit 1
+        }
+
+        log INFO "Record erfolgreich neu erstellt"
+
     else
         # Record existiert nicht, erstelle ihn
         log INFO "Record existiert nicht, erstelle neuen Record"
