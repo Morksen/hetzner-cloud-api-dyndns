@@ -33,6 +33,7 @@ record_ttl="${HETZNER_RECORD_TTL:-60}"
 record_type="${HETZNER_RECORD_TYPE:-A}"
 verbose="${HETZNER_VERBOSE:-false}"
 force_colors="false"
+__retval=""  # Globale Rückgabevariable für Funktionen, die Werte zurückgeben
 
 # Farben werden später initialisiert nach Argument Parsing
 
@@ -59,7 +60,7 @@ log() {
             ;;
         DEBUG)
             if [[ "$verbose" == "true" ]]; then
-                echo -e "${BLUE}[${timestamp}] DEBUG: ${message}${NC}"
+                echo -e "${BLUE}[${timestamp}] DEBUG: ${message}${NC}" >&2
             fi
             ;;
     esac
@@ -106,7 +107,7 @@ api_call() {
         return 1
     fi
     
-    echo "$response"
+    __retval="$response"
     return 0
 }
 
@@ -133,7 +134,7 @@ get_public_ipv4() {
         return 1
     fi
     
-    echo "$ipv4"
+    __retval="$ipv4"
 }
 
 # Hole die öffentliche IPv6-Adresse
@@ -153,7 +154,7 @@ get_public_ipv6() {
         return 1
     fi
     
-    echo "$ipv6"
+    __retval="$ipv6"
 }
 
 # Ermittle die aktuelle öffentliche IP basierend auf Record-Type
@@ -180,8 +181,8 @@ get_zone_id_by_name() {
     
     log DEBUG "Suche Zone-ID für Zone: $name"
     
-    local response
-    response=$(api_call GET "/zones?name=$name") || return 1
+    api_call GET "/zones?name=$name" || return 1
+    local response="$__retval"
     
     local found_id
     found_id=$(echo "$response" | jq -r '.zones[0].id' 2>/dev/null)
@@ -191,7 +192,7 @@ get_zone_id_by_name() {
         return 1
     fi
     
-    echo "$found_id"
+    __retval="$found_id"
 }
 
 # Validiere Zone-ID
@@ -200,13 +201,13 @@ validate_zone_id() {
     
     log DEBUG "Validiere Zone-ID: $zone_id"
     
-    local response
-    response=$(api_call GET "/zones/$zone_id") || return 1
+    api_call GET "/zones/$zone_id" || return 1
+    local response="$__retval"
     
     # Überprüfe ob die Zone-Struktur vorhanden ist
     if echo "$response" | jq -e '.zone' &>/dev/null 2>&1; then
         log DEBUG "Zone validiert: $zone_id"
-        echo "$zone_id"
+        __retval="$zone_id"
         return 0
     fi
     
@@ -231,8 +232,8 @@ find_record() {
     
     log DEBUG "Suche Record: name=$record_name, type=$record_type"
     
-    local response
-    response=$(get_zone_records "$zone_id") || return 1
+    get_zone_records "$zone_id" || return 1
+    local response="$__retval"
     
     # Suche nach dem passenden Record (nur mit dem Namen ohne FQDN)
     local rrset
@@ -241,10 +242,11 @@ find_record() {
     
     if [[ -z "$rrset" ]]; then
         log DEBUG "Record nicht gefunden: $record_name ($record_type)"
+        __retval=""
         return 1
     fi
     
-    echo "$rrset"
+    __retval="$rrset"
 }
 
 # Extrahiere aktuelle IP aus einem Record
@@ -252,7 +254,7 @@ extract_record_value() {
     local rrset="$1"
     
     # Der Wert eines Records ist ein Array von Records
-    echo "$rrset" | jq -r '.records[0].value' 2>/dev/null
+    __retval=$(echo "$rrset" | jq -r '.records[0].value' 2>/dev/null)
 }
 
 # Erstelle einen neuen Record
@@ -281,7 +283,7 @@ EOF
     
     log DEBUG "Payload (formatted): $(echo "$payload" | jq -c .)"
     
-    api_call POST "/zones/$zone_id/rrsets" "$payload" > /dev/null || return 1
+    api_call POST "/zones/$zone_id/rrsets" "$payload" || return 1
 }
 
 # Aktualisiere einen bestehenden Record
@@ -308,7 +310,7 @@ EOF
     
     log DEBUG "Payload (formatted): $(echo "$payload" | jq -c .)"
     
-    api_call PUT "/zones/$zone_id/rrsets/$record_name/$record_type" "$payload" > /dev/null || return 1
+    api_call PUT "/zones/$zone_id/rrsets/$record_name/$record_type" "$payload" || return 1
 }
 
 # Lösche einen bestehenden RRSET (Name + Typ)
@@ -319,7 +321,7 @@ delete_record() {
 
     log INFO "Lösche bestehenden Record: $record_name ($record_type)"
 
-    api_call DELETE "/zones/$zone_id/rrsets/$record_name/$record_type" > /dev/null || return 1
+    api_call DELETE "/zones/$zone_id/rrsets/$record_name/$record_type" || return 1
 }
 
 # Zeige Hilfe
@@ -412,16 +414,15 @@ main() {
     # Bestimme Zone-ID
     if [[ -z "$zone_id" ]]; then
         log INFO "Ermittle Zone-ID für Zone: $zone_name"
-        zone_id=$(get_zone_id_by_name "$zone_name") || {
+        get_zone_id_by_name "$zone_name" || {
             log ERROR "Konnte Zone-ID nicht ermitteln"
             exit 1
         }
+        zone_id="$__retval"
         log INFO "Zone-ID gefunden: $zone_id"
     else
         log INFO "Überprüfe Zone-ID: $zone_id"
-        local validation_result
-        validation_result=$(validate_zone_id "$zone_id")
-        if [[ $? -ne 0 ]]; then
+        if ! validate_zone_id "$zone_id"; then
             log ERROR "Zone-ID ungültig oder nicht erreichbar: $zone_id"
             exit 1
         fi
@@ -430,21 +431,21 @@ main() {
     
     # Ermittle aktuelle öffentliche IP
     log INFO "Ermittle aktuelle öffentliche IP ($record_type)..."
-    local current_ip
-    current_ip=$(get_current_ip "$record_type") || {
+    get_current_ip "$record_type" || {
         log ERROR "Konnte öffentliche IP nicht ermitteln"
         exit 1
     }
+    local current_ip="$__retval"
     log INFO "Aktuelle IP: $current_ip"
     
     # Suche bestehenden Record
-    local existing_record
-    existing_record=$(find_record "$zone_id" "$record_name" "$record_type")
+    find_record "$zone_id" "$record_name" "$record_type"
+    local existing_record="$__retval"
     
     if [[ -n "$existing_record" ]]; then
         # Record existiert, überprüfe ob Update nötig ist
-        local existing_ip
-        existing_ip=$(extract_record_value "$existing_record")
+        extract_record_value "$existing_record"
+        local existing_ip="$__retval"
         
         log INFO "Bestehender Record gefunden: $record_name ($record_type) = $existing_ip"
         
