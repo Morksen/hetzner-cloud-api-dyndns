@@ -1,16 +1,15 @@
 #!/bin/bash
 
 ################################################################################
-# Hetzner DynDNS - Konfigurationsbeispiel
+# Hetzner DynDNS - Configuration examples
 #
-# Dieses Skript zeigt verschiedene Konfigurationsmöglichkeiten für das
-# dyndns.sh Script.
+# This script shows various configuration options for the dyndns.sh script.
 #
-# Verwende es als Vorlage für deine eigene Konfiguration.
+# Use it as a template for your own configuration.
 ################################################################################
 
 # ============================================================================
-# BEISPIEL 1: Minimale Konfiguration (nur erforderliche Parameter)
+# EXAMPLE 1: Minimal configuration (required parameters only)
 # ============================================================================
 
 example_minimal() {
@@ -18,13 +17,13 @@ example_minimal() {
     local zone_name="example.com"
     local record_name="dyn"
     
-    # Einfacher Aufruf mit Umgebungsvariablen
+    # Simple call using environment variables
     HETZNER_AUTH_API_TOKEN="$api_token" \
         /usr/local/bin/dyndns.sh -Z "$zone_name" -n "$record_name"
 }
 
 # ============================================================================
-# BEISPIEL 2: IPv6-Support (AAAA-Record)
+# EXAMPLE 2: IPv6 support (AAAA record)
 # ============================================================================
 
 example_ipv6() {
@@ -37,26 +36,26 @@ example_ipv6() {
 }
 
 # ============================================================================
-# BEISPIEL 3: Benutzerdefinierte TTL (Time To Live)
+# EXAMPLE 3: Custom TTL (Time To Live)
 # ============================================================================
 
 example_custom_ttl() {
     local api_token="your-hetzner-api-token-here"
     local zone_name="example.com"
     local record_name="dyn"
-    local ttl="300"  # 5 Minuten
+    local ttl="300"  # 5 minutes
     
     HETZNER_AUTH_API_TOKEN="$api_token" \
         /usr/local/bin/dyndns.sh -Z "$zone_name" -n "$record_name" -t "$ttl"
 }
 
 # ============================================================================
-# BEISPIEL 4: Zone-ID statt Zone-Name (schneller, keine Lookup erforderlich)
+# EXAMPLE 4: Zone ID instead of zone name (faster, no lookup required)
 # ============================================================================
 
 example_zone_id() {
     local api_token="your-hetzner-api-token-here"
-    local zone_id="98jFjsd8dh1GHasdf7a8hJG7"  # Zone-ID
+    local zone_id="98jFjsd8dh1GHasdf7a8hJG7"  # Zone ID
     local record_name="dyn"
     
     HETZNER_AUTH_API_TOKEN="$api_token" \
@@ -64,7 +63,7 @@ example_zone_id() {
 }
 
 # ============================================================================
-# BEISPIEL 5: Konfiguration über Umgebungsvariablen
+# EXAMPLE 5: Configuration via environment variables
 # ============================================================================
 
 example_env_vars() {
@@ -74,34 +73,34 @@ example_env_vars() {
     export HETZNER_RECORD_TYPE="A"
     export HETZNER_RECORD_TTL="120"
     
-    # Script läuft mit allen Einstellungen aus Umgebungsvariablen
+    # Script runs with all settings from environment variables
     /usr/local/bin/dyndns.sh
 }
 
 # ============================================================================
-# BEISPIEL 6: Konfiguration aus Datei laden
+# EXAMPLE 6: Load configuration from file
 # ============================================================================
 
 example_config_file() {
     local config_file="$HOME/.hetzner-dyndns.conf"
     
-    # Lade die Konfiguration
+    # Load the configuration
     if [[ -f "$config_file" ]]; then
-        # WICHTIG: Sichere Dateiberechtigungen!
+        # IMPORTANT: Secure file permissions!
         # chmod 600 ~/.hetzner-dyndns.conf
-        set -a  # Exportiere alle Variablen
+        set -a  # Export all variables
         source "$config_file"
         set +a
         
         /usr/local/bin/dyndns.sh
     else
-        echo "Konfigurationsdatei nicht gefunden: $config_file"
+        echo "Config file not found: $config_file"
         return 1
     fi
 }
 
 # ============================================================================
-# BEISPIEL 7: Verbose-Debugging
+# EXAMPLE 7: Verbose debugging
 # ============================================================================
 
 example_verbose() {
@@ -114,18 +113,18 @@ example_verbose() {
 }
 
 # ============================================================================
-# BEISPIEL 8: Mehrere Records (IPv4 und IPv6)
+# EXAMPLE 8: Multiple records (IPv4 and IPv6)
 # ============================================================================
 
 example_multiple_records() {
     local api_token="your-hetzner-api-token-here"
     local zone_name="example.com"
     
-    # IPv4-Record
+    # IPv4 record
     HETZNER_AUTH_API_TOKEN="$api_token" \
         /usr/local/bin/dyndns.sh -Z "$zone_name" -n "dyn" -T A
     
-    # IPv6-Record (mit Verzögerung)
+    # IPv6 record (with delay)
     sleep 2
     
     HETZNER_AUTH_API_TOKEN="$api_token" \
@@ -133,7 +132,7 @@ example_multiple_records() {
 }
 
 # ============================================================================
-# BEISPIEL 9: Mit Fehlerbehandlung und Logging
+# EXAMPLE 9: With error handling and logging
 # ============================================================================
 
 example_with_error_handling() {
@@ -143,122 +142,121 @@ example_with_error_handling() {
     local log_file="/var/log/dyndns.log"
     
     {
-        echo "=== DynDNS Update startet: $(date) ==="
+        echo "=== DynDNS update starting: $(date) ==="
         
         if HETZNER_AUTH_API_TOKEN="$api_token" \
            /usr/local/bin/dyndns.sh -Z "$zone_name" -n "$record_name"; then
-            echo "✓ DynDNS Update erfolgreich: $(date)"
+            echo "✓ DynDNS update successful: $(date)"
         else
-            echo "✗ DynDNS Update fehlgeschlagen: $(date)"
+            echo "✗ DynDNS update failed: $(date)"
             exit 1
         fi
     } | tee -a "$log_file"
 }
 
 # ============================================================================
-# BEISPIEL 10: Cron-Integration mit Logger
+# EXAMPLE 10: Cron integration with logger
 # ============================================================================
 
 example_cron_setup() {
     cat << 'EOF'
-# Füge diese Zeilen in deine crontab ein (crontab -e):
+# Add these lines to your crontab (crontab -e):
 
-# IPv4-Record alle 5 Minuten aktualisieren
+# Update IPv4 record every 5 minutes
 */5 * * * * HETZNER_AUTH_API_TOKEN='your-api-token' /usr/local/bin/dyndns.sh -Z example.com -n dyn -T A >> /var/log/dyndns.log 2>&1
 
-# IPv6-Record alle 5 Minuten aktualisieren
+# Update IPv6 record every 5 minutes
 */5 * * * * HETZNER_AUTH_API_TOKEN='your-api-token' /usr/local/bin/dyndns.sh -Z example.com -n dyn -T AAAA >> /var/log/dyndns.log 2>&1
 
-# Verwende einen anderen Cron-Eintrag pro Zone
+# Use a separate cron entry per zone
 */5 * * * * HETZNER_AUTH_API_TOKEN='token1' /usr/local/bin/dyndns.sh -Z zone1.com -n dyn >> /var/log/dyndns-z1.log 2>&1
 */5 * * * * HETZNER_AUTH_API_TOKEN='token2' /usr/local/bin/dyndns.sh -Z zone2.com -n dyn >> /var/log/dyndns-z2.log 2>&1
 EOF
 }
 
 # ============================================================================
-# HILFSFUNKTIONEN FÜR DAS SETUP
+# SETUP HELPER FUNCTIONS
 # ============================================================================
 
-# Zone-ID ermitteln
+# Get zone ID
 list_zones() {
     local api_token="$1"
     
     if [[ -z "$api_token" ]]; then
-        echo "Fehler: API-Token erforderlich"
-        echo "Verwendung: list_zones 'your-api-token'"
+        echo "Error: API token required"
+        echo "Usage: list_zones 'your-api-token'"
         return 1
     fi
     
-    echo "=== Verfügbare Zonen ==="
+    echo "=== Available Zones ==="
     curl -s "https://api.hetzner.cloud/v1/zones" \
         -H "Authorization: Bearer $api_token" | jq '.zones[] | {id, name}'
 }
 
-# Zone-Records anzeigen
+# Show zone records
 list_zone_records() {
     local api_token="$1"
     local zone_id="$2"
     
     if [[ -z "$api_token" ]] || [[ -z "$zone_id" ]]; then
-        echo "Fehler: API-Token und Zone-ID erforderlich"
-        echo "Verwendung: list_zone_records 'token' 'zone-id'"
+        echo "Error: API token and zone ID required"
+        echo "Usage: list_zone_records 'token' 'zone-id'"
         return 1
     fi
     
-    echo "=== Records der Zone $zone_id ==="
+    echo "=== Records for zone $zone_id ==="
     curl -s "https://api.hetzner.cloud/v1/zones/$zone_id/rrsets" \
         -H "Authorization: Bearer $api_token" | jq '.rrsets[] | {name, type, ttl, records}'
 }
 
 # ============================================================================
-# KONFIGURATIONSDATEI-VORLAGE
+# CONFIG FILE TEMPLATE
 # ============================================================================
 
 create_config_template() {
     cat > "$HOME/.hetzner-dyndns.conf" << 'EOF'
-# Hetzner DynDNS - Konfigurationsdatei
-# 
-# Speicherort: ~/.hetzner-dyndns.conf
-# Berechtigungen: chmod 600 ~/.hetzner-dyndns.conf
+# Hetzner DynDNS - Configuration file
 #
-# Hinweis: Dieses Skript wird mittels "source" geladen, also sind
-# alle bash-Variablen möglich.
+# Location: ~/.hetzner-dyndns.conf
+# Permissions: chmod 600 ~/.hetzner-dyndns.conf
+#
+# Note: This file is loaded via "source", so all bash variables are supported.
 
-# API-Token (erforderlich)
-# Hole ihn von: https://console.hetzner.com/
+# API token (required)
+# Get it from: https://console.hetzner.com/
 HETZNER_AUTH_API_TOKEN="your-api-token-here"
 
-# Zone-Name oder Zone-ID (erforderlich, verwende EINES davon)
+# Zone name or zone ID (required, use ONE of the two)
 HETZNER_ZONE_NAME="example.com"
 # HETZNER_ZONE_ID="98jFjsd8dh1GHasdf7a8hJG7"
 
-# Record-Name (erforderlich)
-# Verwende "@" für den Zone-Apex (z.B. example.com)
-# Verwende "dyn" für dyn.example.com
+# Record name (required)
+# Use "@" for the zone apex (e.g. example.com)
+# Use "dyn" for dyn.example.com
 HETZNER_RECORD_NAME="dyn"
 
-# Record-Type (optional, default: A)
+# Record type (optional, default: A)
 # A = IPv4
 # AAAA = IPv6
 HETZNER_RECORD_TYPE="A"
 
-# TTL in Sekunden (optional, default: 60)
-# Empfohlen für DynDNS: 60-300 Sekunden
+# TTL in seconds (optional, default: 60)
+# Recommended for DynDNS: 60-300 seconds
 HETZNER_RECORD_TTL="120"
 
-# Verbose-Modus (optional, default: false)
-# Setzt auf "true" um Debug-Ausgaben zu sehen
+# Verbose mode (optional, default: false)
+# Set to "true" to see debug output
 HETZNER_VERBOSE="false"
 EOF
     
     chmod 600 "$HOME/.hetzner-dyndns.conf"
-    echo "✓ Konfigurationsdatei erstellt: $HOME/.hetzner-dyndns.conf"
-    echo "  Bearbeite die Datei mit deinen Einstellungen:"
+    echo "✓ Config file created: $HOME/.hetzner-dyndns.conf"
+    echo "  Edit the file with your settings:"
     echo "  nano $HOME/.hetzner-dyndns.conf"
 }
 
 # ============================================================================
-# SYSTEMD-TIMER VORLAGE
+# SYSTEMD TIMER TEMPLATE
 # ============================================================================
 
 create_systemd_timer() {
@@ -266,10 +264,10 @@ create_systemd_timer() {
     local timer_file="/etc/systemd/system/${service_name}.timer"
     local service_file="/etc/systemd/system/${service_name}.service"
     
-    echo "=== Systemd Timer Konfiguration ==="
+    echo "=== Systemd Timer Configuration ==="
     echo ""
-    echo "Service-Datei: $service_file"
-    echo "Timer-Datei: $timer_file"
+    echo "Service file: $service_file"
+    echo "Timer file: $timer_file"
     echo ""
     echo "Service ($service_file):"
     cat << 'EOF'
@@ -304,7 +302,7 @@ WantedBy=timers.target
 EOF
     
     echo ""
-    echo "Aktivierung:"
+    echo "Activation:"
     echo "  sudo systemctl daemon-reload"
     echo "  sudo systemctl enable --now dyndns.timer"
     echo "  sudo systemctl status dyndns.timer"
@@ -312,66 +310,66 @@ EOF
 }
 
 # ============================================================================
-# INTERAKTIVES SETUP
+# INTERACTIVE SETUP
 # ============================================================================
 
 interactive_setup() {
     clear
     
     echo "╔════════════════════════════════════════╗"
-    echo "║   Hetzner DynDNS - Interaktives Setup   ║"
+    echo "║   Hetzner DynDNS - Interactive Setup   ║"
     echo "╚════════════════════════════════════════╝"
     echo ""
     
-    read -p "API-Token eingeben: " api_token
+    read -p "Enter API token: " api_token
     
     if [[ -z "$api_token" ]]; then
-        echo "✗ API-Token erforderlich"
+        echo "✗ API token required"
         return 1
     fi
     
     echo ""
-    echo "=== Verfügbare Zonen ==="
+    echo "=== Available Zones ==="
     list_zones "$api_token" || return 1
     
     echo ""
-    read -p "Zone-Name eingeben (z.B. example.com): " zone_name
+    read -p "Enter zone name (e.g. example.com): " zone_name
     
-    # Ermittle Zone-ID
+    # Determine zone ID
     local zone_id
     zone_id=$(curl -s "https://api.hetzner.cloud/v1/zones?name=$zone_name" \
         -H "Authorization: Bearer $api_token" | jq -r '.zones[0].id')
     
     if [[ -z "$zone_id" ]] || [[ "$zone_id" == "null" ]]; then
-        echo "✗ Zone nicht gefunden"
+        echo "✗ Zone not found"
         return 1
     fi
     
-    echo "✓ Zone-ID: $zone_id"
+    echo "✓ Zone ID: $zone_id"
     echo ""
     
-    echo "=== Records der Zone ==="
+    echo "=== Zone records ==="
     list_zone_records "$api_token" "$zone_id" || return 1
     
     echo ""
-    read -p "Record-Name eingeben (z.B. dyn): " record_name
+    read -p "Enter record name (e.g. dyn): " record_name
     
-    read -p "Record-Type eingeben (A/AAAA) [default: A]: " record_type
+    read -p "Enter record type (A/AAAA) [default: A]: " record_type
     record_type="${record_type:-A}"
     
-    read -p "TTL eingeben [default: 60]: " record_ttl
+    read -p "Enter TTL [default: 60]: " record_ttl
     record_ttl="${record_ttl:-60}"
     
     echo ""
-    echo "=== Zusammenfassung ==="
+    echo "=== Summary ==="
     echo "Zone: $zone_name ($zone_id)"
     echo "Record: $record_name ($record_type)"
     echo "TTL: $record_ttl"
     echo ""
     
-    read -p "Speichere diese Konfiguration? (j/n): " save_config
+    read -p "Save this configuration? (y/n): " save_config
     
-    if [[ "$save_config" == "j" ]]; then
+    if [[ "$save_config" == "y" ]]; then
         cat > "$HOME/.hetzner-dyndns.conf" << EOF
 HETZNER_AUTH_API_TOKEN="$api_token"
 HETZNER_ZONE_NAME="$zone_name"
@@ -381,20 +379,20 @@ HETZNER_RECORD_TTL="$record_ttl"
 EOF
         
         chmod 600 "$HOME/.hetzner-dyndns.conf"
-        echo "✓ Konfigurationsdatei erstellt: ~/.hetzner-dyndns.conf"
+        echo "✓ Config file created: ~/.hetzner-dyndns.conf"
     fi
     
     echo ""
-    read -p "Test-Update durchführen? (j/n): " test_update
+    read -p "Run test update? (y/n): " test_update
     
-    if [[ "$test_update" == "j" ]]; then
+    if [[ "$test_update" == "y" ]]; then
         source "$HOME/.hetzner-dyndns.conf"
         /usr/local/bin/dyndns.sh -v
     fi
 }
 
 # ============================================================================
-# HAUPTMENÜ
+# MAIN MENU
 # ============================================================================
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
@@ -446,26 +444,26 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             ;;
         *)
             cat << 'EOF'
-Hetzner DynDNS - Konfigurationsbeispiele
+Hetzner DynDNS - Configuration examples
 
-Verfügbare Beispiele:
-  ./config-examples.sh example1      - Minimale Konfiguration
-  ./config-examples.sh example2      - IPv6-Support
-  ./config-examples.sh example3      - Benutzerdefinierte TTL
-  ./config-examples.sh example4      - Zone-ID verwenden
-  ./config-examples.sh example5      - Umgebungsvariablen
-  ./config-examples.sh example6      - Konfigurationsdatei
-  ./config-examples.sh example7      - Verbose-Debugging
-  ./config-examples.sh example8      - Mehrere Records
-  ./config-examples.sh example9      - Mit Fehlerbehandlung
-  ./config-examples.sh example10     - Cron-Setup
+Available examples:
+  ./config-examples.sh example1      - Minimal configuration
+  ./config-examples.sh example2      - IPv6 support
+  ./config-examples.sh example3      - Custom TTL
+  ./config-examples.sh example4      - Use zone ID
+  ./config-examples.sh example5      - Environment variables
+  ./config-examples.sh example6      - Config file
+  ./config-examples.sh example7      - Verbose debugging
+  ./config-examples.sh example8      - Multiple records
+  ./config-examples.sh example9      - With error handling
+  ./config-examples.sh example10     - Cron setup
 
-Hilfsfunktionen:
-  ./config-examples.sh list-zones <token>              - Zones auflisten
-  ./config-examples.sh list-records <token> <zone-id>  - Records auflisten
-  ./config-examples.sh create-config                   - Config-Datei erstellen
-  ./config-examples.sh systemd                         - Systemd-Timer zeigen
-  ./config-examples.sh setup                           - Interaktives Setup
+Helper functions:
+  ./config-examples.sh list-zones <token>              - List zones
+  ./config-examples.sh list-records <token> <zone-id>  - List records
+  ./config-examples.sh create-config                   - Create config file
+  ./config-examples.sh systemd                         - Show systemd timer
+  ./config-examples.sh setup                           - Interactive setup
 
 EOF
             ;;
